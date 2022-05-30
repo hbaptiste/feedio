@@ -1,0 +1,16 @@
+.cw-main-wrapper {
+    
+    display: flex;
+    flex-direction: row;
+    min-height: 100vh;
+}
+.cw-main-wrapper .side {
+    height: auto;
+    border: 1px solid lightslategrey;
+    width:30%
+}
+.cw-main-wrapper .main {
+    height: auto;
+    border-left: 1px solid lightslategrey;
+    width:70%;
+}
