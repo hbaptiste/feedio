@@ -1,4 +1,4 @@
-# Feedio: a collaborative reading tool
+# Feedio: a collaborative reading and annotation tool
 
 
 ## Available Scripts
