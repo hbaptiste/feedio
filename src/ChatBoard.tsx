@@ -179,7 +179,7 @@ const ImageTypeMessage: React.FC<ImageTypeMessageProps> = ({
   console.log(message);
   return (
     <Column>
-      <img src={message.part?.data.src} width="250" />
+      <img alt="" src={message.part?.data.src} width="250" />
       <span className="time">{message.time}</span>
     </Column>
   );
@@ -229,11 +229,14 @@ interface useFileUploaderProps {
   onUpload: (data: string) => void;
 }
 
+//change with children func
 const useFileUploader = ({ ref, onUpload }: useFileUploaderProps) => {
   const onError = () => {};
+
   const doUpload = () => {
     ref.current?.click();
   };
+  const isBinded = useRef(false);
 
   /* strange */
   const handleFile = (file: File) => {
@@ -255,20 +258,20 @@ const useFileUploader = ({ ref, onUpload }: useFileUploaderProps) => {
       reader.readAsDataURL(file);
     }
   };
-
-  ref.current?.addEventListener("change", (e) => {
+  const changeHandler = useCallback((e: Event): any => {
     if (ref) {
       const files = ref?.current?.files;
       if (files?.length) {
         handleFile(files[0]);
       }
     }
-  });
+  }, []);
+  ref.current?.addEventListener("change", changeHandler);
 
   return { onUpload, onError, doUpload };
 };
 
-const FileUpload: React.FC<FileUploadProps> = ({
+let FileUpload: React.FC<FileUploadProps> = ({
   display,
   accept,
   onUpload,
@@ -277,7 +280,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
   const { onError, doUpload } = useFileUploader({ ref: inputRef, onUpload });
 
   useEffect(() => {
-    if (display == true) {
+    if (display === true) {
       doUpload();
     }
   }, [display]);
@@ -293,6 +296,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
     </>
   );
 };
+FileUpload = React.memo(FileUpload);
 
 const _handleNewImage = (state: AppState, action: Action): AppState => {
   alert("-- radical --");
@@ -322,7 +326,7 @@ const msgReducer = (state: AppState, action: Action): AppState => {
       let msg: Message = {
         content: action.payload,
         time: new Date().toLocaleString(),
-        from: "raiid",
+        from: "raid",
         to: "Strange",
       };
 
@@ -336,7 +340,7 @@ const msgReducer = (state: AppState, action: Action): AppState => {
 };
 
 interface AddImgButtonProps {
-  onData: (data: string) => void;
+  onData?: (data: string) => void;
 }
 
 const AddImgButton: React.FC<AddImgButtonProps> = (
@@ -347,15 +351,22 @@ const AddImgButton: React.FC<AddImgButtonProps> = (
 
   const onUpload = useCallback((data: string) => {
     console.log("-- on upload s--");
-    props.onData(data);
+    if (props.onData) {
+      props.onData(data);
+    }
     setDisplay(false);
+  }, []);
+
+  const handleDisplay = useCallback(() => {
+    console.log("handle display-->");
+    setDisplay(true);
   }, []);
 
   const onError = useCallback(() => {}, []);
   console.log("-- Add Img Button --");
   return (
     <>
-      <MdImage className="addImgBtn" onClick={(e) => setDisplay(true)} />
+      <MdImage className="addImgBtn" onClick={() => setDisplay(true)} />
       <FileUpload
         display={display}
         accept="image/*"
@@ -390,14 +401,16 @@ const ChatBoard: React.FC<ChatBoardProps> = (props: ChatBoardProps) => {
   const msgInputRef = useRef<HTMLTextAreaElement>(null);
 
   // callback
-  const onSend = () => {
+  const onSend = useCallback(() => {
+    console.log("-- inside onSend --");
     const msg = msgInputRef?.current?.value || "";
     dispatch({ type: "NEW_TEXT_MSG", payload: msg });
     if (msgInputRef.current !== null) {
       msgInputRef.current.value = "";
       msgInputRef.current.focus();
     }
-  };
+  }, []);
+
   const handleNewImage = useCallback((data: string) => {
     dispatch({ payload: data, type: "NEW_IMG_MSG" });
   }, []);
