@@ -1,6 +1,14 @@
-import { RandomUUIDOptions } from "crypto";
-import React, { useCallback, useEffect, useReducer, useRef } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { MdSend, MdImage, MdAdd, MdOutlineMoreVert } from "react-icons/md";
+import { newMessage, clearMessage } from "./features/messagesSlice";
+import { newChannel, setCurrentChannel } from "./features/channelsSlice";
+import { useAppDispatch, useAppSelector } from "./hooks";
+import { createChannel, getChannels } from "./services/channels";
+import { getMessages, createMessage } from "./services/messages";
+
+import storage from "./firebaseConfig";
+
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
 import {
   Row,
@@ -10,66 +18,22 @@ import {
   StyleMessageItem,
   StyledHeaderZone,
   StyledChannelItem,
+  StyledChatBoard,
   Column,
 } from "./styles";
-// style
-interface User {
-  name: String;
-  alias: String;
-}
 
-type ClassName = { classname: string };
+const counter = (prefix: string) => {
+  let count = 0;
+  return () => {
+    return prefix + "_" + count++;
+  };
+};
+//    TASKs
+// Loading message
+// Create Channels
+// Add Image With
 
-interface MessagePart {
-  type: string;
-  data: Record<string, any>;
-}
-
-interface Message {
-  content: string; //handle type
-  from: string;
-  to: string;
-  time: string;
-  part?: MessagePart;
-}
-
-interface ChatBoardProps {
-  lastMessage: String;
-  messages: Message[];
-  className?: string;
-}
-
-interface UserListProps {
-  users?: String[];
-}
-
-interface MessageBoardProps {
-  messages?: Message[];
-  children: JSX.Element | JSX.Element[];
-}
-
-interface UserItemProps {
-  picto?: string;
-  pseudo: string;
-  username: string;
-  messageCount?: number;
-  selected?: boolean;
-}
-
-interface AppState {
-  messages: Message[];
-}
-
-type Action =
-  | { type: "NEW_TEXT_MSG"; payload: string }
-  | { type: "NEW_USER"; payload: string }
-  | { type: "SEARCH_USER"; payload: string }
-  | { type: "NEW_IMG_MSG"; payload: string }
-  | { type: "SEARCH_MSG"; payload: string }
-  | { type: "SELECT_CHANNEL"; payload: string };
-
-//const EditView: React.FC<>
-
+const messageCounter = counter("message");
 const UserItem: React.FC<UserItemProps> = (props: UserItemProps) => {
   return (
     <StyledUserItem selected={props.selected ? "selected" : ""}>
@@ -86,28 +50,16 @@ const UserItem: React.FC<UserItemProps> = (props: UserItemProps) => {
   );
 };
 
-interface Channel {
-  uuid: RandomUUIDOptions;
-  name: string;
-  isProtected?: boolean;
-}
-
-interface ChannelItemProps {
-  title: string;
-  isProtected?: boolean;
-  onChannelClick: (channel?: Channel) => void;
-}
-
 const ChannelItem: React.FC<ChannelItemProps> = (props: ChannelItemProps) => {
-  const channelLetter = props.title[0];
+  const channelLetter = props.channel.name[0];
   return (
     <StyledChannelItem
       onClick={(e) => {
-        props.onChannelClick();
+        props.onChannelClick(props.channel);
       }}
     >
       <p className="channel_icon">{channelLetter}</p>
-      <p className="channel_title">{props.title}</p>
+      <p className="channel_title">{props.channel.name}</p>
       <p className="channel_action">
         <MdOutlineMoreVert className="new_channel_button" />
       </p>
@@ -121,9 +73,21 @@ const UserList: React.FC<UserListProps & { className?: string }> = (
   const handleClick = () => {
     alert("radicial balze");
   };
-  const onChannelClick = () => {
-    alert("-- ici --");
+  const [channels, setChannels] = useState<any>([]); //to fix
+  const dispatch = useAppDispatch();
+
+  const onChannelClick = async (channel: Channel) => {
+    dispatch(clearMessage());
+    dispatch(setCurrentChannel(channel));
+    console.log("i--- cic---");
   };
+
+  useEffect(() => {
+    getChannels().then((channels) => {
+      setChannels(channels);
+    });
+  }, []);
+
   return (
     <StyledUserList {...props}>
       <StyledHeaderZone>
@@ -143,15 +107,11 @@ const UserList: React.FC<UserListProps & { className?: string }> = (
       </ul>
 
       <ul className="channelList">
-        <ChannelItem
-          onChannelClick={onChannelClick}
-          title="Network programming Go"
-        />
-        <ChannelItem
-          onChannelClick={onChannelClick}
-          title="La description du monde"
-        />
-        <ChannelItem onChannelClick={onChannelClick} title="How to work..." />
+        {channels.map((channel: any) => {
+          return (
+            <ChannelItem onChannelClick={onChannelClick} channel={channel} />
+          );
+        })}
       </ul>
     </StyledUserList>
   );
@@ -160,7 +120,11 @@ const UserList: React.FC<UserListProps & { className?: string }> = (
 const MessageBoard: React.FC<
   MessageBoardProps & { children: JSX.Element | JSX.Element[] }
 > = (props: MessageBoardProps) => {
-  return <StyledMessageBoard>{props.children} </StyledMessageBoard>;
+  return (
+    <StyledMessageBoard className={props.className}>
+      {props.children}{" "}
+    </StyledMessageBoard>
+  );
 };
 
 interface MessageItemProps {
@@ -175,12 +139,10 @@ interface ImageTypeMessageProps extends MessageItemProps {}
 const ImageTypeMessage: React.FC<ImageTypeMessageProps> = ({
   message,
 }: ImageTypeMessageProps) => {
-  console.log("-- message --");
-  console.log(message);
   return (
     <Column>
       <img alt="" src={message.part?.data.src} width="250" />
-      <span className="time">{message.time}</span>
+      <span className="time"></span>
     </Column>
   );
 };
@@ -211,23 +173,12 @@ const MessageItem: React.FC<MessageItemProps> = ({
       {!message.part && (
         <>
           <p className="content">{message.content}</p>
-          <span className="time">{message.time}</span>
+          <span className="time">{message.createdAt}</span>
         </>
       )}
     </StyleMessageItem>
   );
 };
-
-interface FileUploadProps {
-  accept: string;
-  display: boolean;
-  onUpload: (data: string) => void;
-  onError: () => void;
-}
-interface useFileUploaderProps {
-  ref: React.RefObject<HTMLInputElement>;
-  onUpload: (data: string) => void;
-}
 
 //change with children func
 const useFileUploader = ({ ref, onUpload }: useFileUploaderProps) => {
@@ -248,7 +199,7 @@ const useFileUploader = ({ ref, onUpload }: useFileUploaderProps) => {
         const data = reader.result;
         if (data as string) {
           const _dataStr = data as string;
-          onUpload(_dataStr);
+          onUpload({ data: _dataStr, name: file.name });
         }
       },
       false
@@ -275,6 +226,7 @@ let FileUpload: React.FC<FileUploadProps> = ({
   display,
   accept,
   onUpload,
+  render,
 }: FileUploadProps) => {
   const inputRef = useRef<HTMLInputElement>(null);
   const { onError, doUpload } = useFileUploader({ ref: inputRef, onUpload });
@@ -293,54 +245,14 @@ let FileUpload: React.FC<FileUploadProps> = ({
         type="file"
         accept={accept}
       />
+      {render(doUpload)}
     </>
   );
 };
 FileUpload = React.memo(FileUpload);
 
-const _handleNewImage = (state: AppState, action: Action): AppState => {
-  alert("-- radical --");
-  // async -- retturn path
-  const imgPart = {
-    type: "img",
-    data: {
-      src: action.payload,
-    },
-  };
-  const msg: Message = {
-    content: "",
-    time: new Date().toLocaleString(),
-    from: "me",
-    to: "me",
-    part: imgPart,
-  };
-  let { messages } = state;
-  messages = [...messages, msg];
-  return { messages };
-};
-
-const msgReducer = (state: AppState, action: Action): AppState => {
-  switch (action.type) {
-    case "NEW_TEXT_MSG":
-      let { messages } = state;
-      let msg: Message = {
-        content: action.payload,
-        time: new Date().toLocaleString(),
-        from: "raid",
-        to: "Strange",
-      };
-
-      messages = [...messages, msg];
-      return { messages };
-    case "NEW_IMG_MSG":
-      return _handleNewImage(state, action);
-    default:
-      throw new Error();
-  }
-};
-
 interface AddImgButtonProps {
-  onData?: (data: string) => void;
+  onData?: (file: MessageFile) => void;
 }
 
 const AddImgButton: React.FC<AddImgButtonProps> = (
@@ -349,10 +261,11 @@ const AddImgButton: React.FC<AddImgButtonProps> = (
   const [display, setDisplay] = React.useState(false);
   const ref = useRef(null);
 
-  const onUpload = useCallback((data: string) => {
+  const onUpload = useCallback((file: MessageFile) => {
     console.log("-- on upload s--");
+    console.log(props.onData);
     if (props.onData) {
-      props.onData(data);
+      props.onData(file);
     }
     setDisplay(false);
   }, []);
@@ -363,17 +276,20 @@ const AddImgButton: React.FC<AddImgButtonProps> = (
   }, []);
 
   const onError = useCallback(() => {}, []);
-  console.log("-- Add Img Button --");
+
+  const buttonRender = (doUpload: () => void) => {
+    return <MdImage className="addImgBtn" onClick={doUpload} />;
+  };
+
   return (
     <>
-      <MdImage className="addImgBtn" onClick={() => setDisplay(true)} />
       <FileUpload
         display={display}
         accept="image/*"
         onUpload={onUpload}
         onError={onError}
-      />
-      {/*refactor with children()*/}
+        render={buttonRender}
+      ></FileUpload>
     </>
   );
 };
@@ -393,67 +309,123 @@ const AddChannelButton: React.FC<
   );
 };
 
-// typescript declaration
+// <ChatBoard> || typescript declaration
 const ChatBoard: React.FC<ChatBoardProps> = (props: ChatBoardProps) => {
   const propsI: UserListProps = {};
-  const [state, dispatch] = useReducer(msgReducer, { messages: [] });
+  const dispatch = useAppDispatch();
+  const messages = useAppSelector((state) => state.messages).messages;
+  const currentChannel = useAppSelector(
+    (state) => state.channels.currentChannel
+  );
+  const [uploadCallback, setUploadCallback] = useState(() => () => {
+    console.log("uploadCallback");
+  });
+
+  useEffect(() => {
+    if (!currentChannel) {
+      return;
+    }
+    getMessages(currentChannel.ref).then((list) => {
+      list.map((item) => dispatch(newMessage(item as Message)));
+    });
+  }, [currentChannel]);
+
+  //? comment
   // ref
   const msgInputRef = useRef<HTMLTextAreaElement>(null);
 
   // callback
   const onSend = useCallback(() => {
-    console.log("-- inside onSend --");
-    const msg = msgInputRef?.current?.value || "";
-    dispatch({ type: "NEW_TEXT_MSG", payload: msg });
+    if (!currentChannel) {
+      return;
+    }
+    let msg: Message = {
+      channel: currentChannel.ref,
+      content: msgInputRef?.current?.value || "",
+      createdAt: new Date().toLocaleString(),
+      from: "raid", //@current user
+    };
+
+    createMessage(msg).then((data) => {
+      dispatch(newMessage(data as Message)); // we need the id
+    });
+
     if (msgInputRef.current !== null) {
       msgInputRef.current.value = "";
       msgInputRef.current.focus();
     }
-  }, []);
+  }, [currentChannel]);
 
-  const handleNewImage = useCallback((data: string) => {
-    dispatch({ payload: data, type: "NEW_IMG_MSG" });
-  }, []);
+  // handle New Image
+  let handleNewImage = async (file: MessageFile) => {
+    console.log(currentChannel);
+    if (!currentChannel) {
+      return;
+    }
 
-  const handleClick = () => {
-    alert("Radical");
+    const storageRef = ref(storage, `/files/${file.name}`);
+    const base64Response = await fetch(file.data);
+    const blob = await base64Response.blob();
+    console.log(file.name);
+    // uploadString use upload string
+    uploadBytes(storageRef, blob).then(({ metadata, ref }) => {
+      getDownloadURL(ref).then((downloadURL) => {
+        console.log(downloadURL);
+        const imgPart = {
+          type: "img",
+          data: {
+            src: downloadURL,
+          },
+        };
+        const msg: Message = {
+          content: "", //permettre de déclarer
+          channel: currentChannel.ref,
+          createdAt: new Date().toLocaleString(),
+          from: "me",
+          part: imgPart,
+        };
+        createMessage(msg).then((data) => {
+          dispatch(newMessage(data as Message));
+        });
+      });
+    });
   };
 
   return (
-    <div>
-      <Row>
-        <UserList className={props.className || ""} {...propsI} />
-
-        <MessageBoard>
-          <div className="header">
-            <p>Search</p>
-
-            <p>Patorvski</p>
-
-            <p>...</p>
+    <StyledChatBoard className={currentChannel ? "channelSelected" : ""}>
+      <UserList className={props.className || "usr-list"} {...propsI} />
+      <MessageBoard className="msg-board">
+        <div className="header">
+          <p className="currentChannel">
+            {currentChannel && currentChannel.name}
+          </p>
+        </div>
+        <div className="content-wrapper">
+          <div className="msg-list">
+            {messages.map((msg: any) => {
+              return (
+                <MessageItem message={msg} key={msg?.ref || messageCounter()} />
+              );
+            })}
           </div>
-          <div className="content-wrapper">
-            <div className="msg-list">
-              {state.messages.map((msg) => {
-                return <MessageItem message={msg} />;
-              })}
-            </div>
-          </div>
-          <div className="messageForm">
-            <Row>
-              <AddImgButton onData={handleNewImage} />
-              <textarea
-                ref={msgInputRef}
-                placeholder="Enter message or type /"
+        </div>
+        <div className="messageForm">
+          <Row>
+            {currentChannel && (
+              <AddImgButton
+                onData={(data) => {
+                  handleNewImage(data);
+                }}
               />
-              <span className="sendBtn" onClick={onSend}>
-                <MdSend className="test" />
-              </span>
-            </Row>
-          </div>
-        </MessageBoard>
-      </Row>
-    </div>
+            )}
+            <textarea ref={msgInputRef} placeholder="Enter message or type /" />
+            <span className="sendBtn" onClick={onSend}>
+              <MdSend className="test" />
+            </span>
+          </Row>
+        </div>
+      </MessageBoard>
+    </StyledChatBoard>
   );
 };
 

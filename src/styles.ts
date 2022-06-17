@@ -5,15 +5,17 @@
 import styled from "styled-components";
 
 export const AppContainer = styled.div`
-    display:flex;
-    background-color: #3179ba;
-    height: 100%;
-    minHeight: 700px;
-    padding: 20px;
-    width:100%;
-    border: 1px solid red;
-    align-items: center;
-    justify-content: center;
+    @media screen and (min-width: 600px) {
+        display: flex;
+        background-color: #3179ba;
+        height: 100%;
+        minHeight: 700px;
+        padding: 20px;
+        width:100%;
+        border: 1px solid red;
+        align-items: center;
+        justify-content: center;
+    }
 `
 
 interface RowProps {
@@ -31,14 +33,93 @@ export const Row = styled.div<RowProps>`
     justify-content: center;
     align-items: center;
 `
-    
-
 
 export const StyledUserList = styled.div`
     background-color: white;
-    height: 600px;
-    width: 300px;
+    height: auto;
+    width: 100%;
 `
+
+export const StyledMessageBoard = styled.div`
+    background-color: white;
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    flex-direction: column;
+    overflow-y: scroll;
+    & .header {
+        position: fixed;
+        padding-left: 30px;
+        width: 100%;
+        display: flex;
+        height: 64px;
+        align-items: center;
+        flex: 1;
+        z-index: 100;
+        background: #f0f0f0;
+        border: 1px solid #e5ddd5;
+    }
+   & .content-wrapper {
+     background-color: #e5ddd5;
+     overflow-y: auto;
+     padding-top:  40px;
+     padding-bottom: 50px;
+     flex: 1;
+   }
+   & .msg-list {
+    padding: 20px 7%;
+    display: flex;
+    flex-direction: column;
+    & .to-me {
+        background: #cfe9ba;
+        align-self: flex-end
+    }
+   }
+    & .currentChannel {
+        font-weight: bold;
+        font-size:var( --font-size-1)
+    }
+
+    & .messageForm {
+        position: fixed;
+        bottom: 0px;
+        width: 100%;
+        margin-top: auto;
+        padding: 10px;
+        background: #f0f0f0;
+        border: 1px solid #e5ddd5;
+    }
+    & textarea {
+        flex: 1;
+        box-sizing: border-box;
+        border: none;
+        border-radius: 15px;
+        background-color: white;
+        padding: 5px 5px;
+        vertical-align: baseline;
+        font-family: Roboto;
+        font-size: 14px
+    }
+    & .sendBtn {
+        margin-left: 10px;
+        margin-right: 10px;
+        border: 1px solid light-grey
+    }
+    & .test, .addImgBtn {
+        width: 25px;
+        height: 25px;
+        opacity : 0.6;
+        bsorder: 1px solid red;
+        margin-right: 10px;
+    }
+
+     & .test:hover, .addImgBtn:hover {
+       opacity: 1;
+       border-radius: 100px;
+       background: white; 
+    }
+`
+
 
 interface StyledUserItem {
     selected?: string
@@ -148,72 +229,6 @@ export const StyledChannelItem = styled.li`
     
 `
 
-export const StyledMessageBoard = styled.div`
-    background-color: white;
-    display: flex;
-    justify-content: space-between;
-    flex-direction: column;
-    background-color: red;
-    height: 600px;
-    width: 600px;
-    overflow-y: scroll;
-   & .content-wrapper {
-     background-color: #e5ddd5;
-     overflow-y: auto;
-     flex: 1;
-   }
-   & .msg-list {
-    padding: 20px 7%;
-    display: flex;
-    flex-direction: column;
-    & .to-me {
-        background: #cfe9ba;
-        align-self: flex-end
-    }
-   }
-    & .header {
-        display: flex;
-        background: #ededed;
-        height: 51px;    
-    }
-    & .messageForm {
-        margin-top: auto;
-        padding: 10px;
-        background: #f0f0f0;
-        height; 150px;
-        border: 1px solid #e5ddd5;
-    }
-    & textarea {
-        flex: 1;
-        box-sizing: border-box;
-        border: none;
-        border-radius: 15px;
-        background-color: white;
-        padding: 5px 10px;
-        vertical-align: baseline;
-        font-family: Roboto;
-        font-size: 14px
-    }
-    & .sendBtn {
-        margin-left: 10px;
-        margin-right: 10px;
-        border: 1px solid light-grey
-    }
-    & .test, .addImgBtn {
-        width: 25px;
-        height: 25px;
-        opacity : 0.6;
-        bsorder: 1px solid red;
-        margin-right: 10px;
-    }
-
-     & .test:hover, .addImgBtn:hover {
-       opacity: 1;
-       border-radius: 100px;
-       background: white; 
-    }
-`
-
 export const StyleMessageItem  = styled.div`
     border-radius: 8px;
     max-width: 500px;
@@ -283,3 +298,18 @@ export const StyledChannelZone = styled.div`
 
 `
 
+// add animation back buttoon
+export const StyledChatBoard = styled.div`
+ width: 100%;
+ & .msg-board {
+    display: none
+ }
+&.channelSelected {
+    & .msg-board {
+        display: block
+    }
+    & .usr-list {
+        display: none
+    }
+ }
+`
