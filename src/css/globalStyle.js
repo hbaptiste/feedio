@@ -20,5 +20,18 @@ const GlobalStyle = createGlobalStyle`
         padding: 0;
         box-sizing: border-box;
     }
+    .ico-btn {
+        width: 25px;
+        height: 25px;
+        background: #ededed;
+        border-radius : 50%;
+        margin-right: 10px;
+        padding: 3px;
+        cursor: pointer;
+    }
+    .ico-btn:hover {
+        background: #D3DEDC;
+    }
+    
 `
 export default GlobalStyle;

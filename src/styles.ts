@@ -49,10 +49,10 @@ export const StyledMessageBoard = styled.div`
     overflow-y: scroll;
     & .header {
         position: fixed;
-        padding-left: 30px;
+        padding-left: 3px;
         width: 100%;
         display: flex;
-        height: 64px;
+        height: 45px;
         align-items: center;
         flex: 1;
         z-index: 100;
@@ -62,7 +62,7 @@ export const StyledMessageBoard = styled.div`
    & .content-wrapper {
      background-color: #e5ddd5;
      overflow-y: auto;
-     padding-top:  40px;
+     padding-top: 40px;
      padding-bottom: 50px;
      flex: 1;
    }
@@ -77,28 +77,33 @@ export const StyledMessageBoard = styled.div`
    }
     & .currentChannel {
         font-weight: bold;
-        font-size:var( --font-size-1)
+        font-size: var( --font-size-1)
     }
 
     & .messageForm {
+        box-sizing: border-box;
         position: fixed;
         bottom: 0px;
         width: 100%;
         margin-top: auto;
-        padding: 10px;
+        padding: 8px;
         background: #f0f0f0;
         border: 1px solid #e5ddd5;
     }
     & textarea {
         flex: 1;
-        box-sizing: border-box;
         border: none;
-        border-radius: 15px;
+        border-radius: 10px;
         background-color: white;
-        padding: 5px 5px;
-        vertical-align: baseline;
+        padding-left: 5px;
+        padding-top: 10px;
+        min-height: 35px;
         font-family: Roboto;
-        font-size: 14px
+        font-size: 14px;
+    }
+    & textarea:focus {
+        outline: none !important;
+        border: 1px solid lightgray
     }
     & .sendBtn {
         margin-left: 10px;
@@ -109,7 +114,6 @@ export const StyledMessageBoard = styled.div`
         width: 25px;
         height: 25px;
         opacity : 0.6;
-        bsorder: 1px solid red;
         margin-right: 10px;
     }
 
@@ -134,8 +138,9 @@ export const StyledUserItem = styled.li<StyledUserItem>`
     background: ${ props => props.selected? "#f7f7f7":"white" };
     padding: 5px;
     & .user_message_status {
-       _border: 1px solid red;
        margin-bottom: 5px;
+       border: 1px solid blue;
+       flex: 0 0 50px;
     }
     & .user_message_time {
         flex: 1;
@@ -168,21 +173,33 @@ export const StyledUserItem = styled.li<StyledUserItem>`
         text-align: center;
         line-height: 50px;
     }
-    & .user_username { 
-        margin: 0;
-        text-overflow: ellipsis;
-        font-weight: bold;
-        overflow: hidden;
-        flex-grow: 1;
-        font-size: 14px;
+     & .user_info_wrapper {
+        flex: 1;
+        flex-direction: column;
+        border: 1px solid yellow;
+        justify-content: center;
+        align-items: center;
+        padding-left: 5px;
+
+        & .user_username { 
+            margin: 0;
+            text-overflow: ellipsis;
+            font-weight: bold;
+            overflow: hidden;
+            flex-grow: 1;
+            font-size: 14px;
+            text-align: left;
+            align-self: center;
+        }
+        & .user_message {
+            margin: 0px;
+            opacity: 0.6;
+            text-overflow: ellipsis;
+            text-align: left;       
+            oveflow: hidden;
+        }
     }
-    & .user_message {
-        margin: 0px;
-        opacity: 0.6;
-        text-overflow: ellipsis;
-        oveflow: hidden;
-        flex: 1
-    }
+}
 `
 export const StyledChannelItem = styled.li`
     display: flex;
@@ -210,6 +227,7 @@ export const StyledChannelItem = styled.li`
         flex-grow: 1;
         font-size: 14px;
         margin-left: 5px;
+        text-align: left;
         align-self: center;
     }
     & .channel_action {
@@ -251,7 +269,10 @@ export const StyleMessageItem  = styled.div`
 
 export const Column = styled.div`
 display: flex;
+border: 1px solid red;
 flex-direction: column;
+flex: 1;
+align-item: center;
 `
 
 export const StyledHeaderZone = styled.div`
@@ -304,7 +325,7 @@ export const StyledChatBoard = styled.div`
  & .msg-board {
     display: none
  }
-&.channelSelected {
+&.display-msg-board {
     & .msg-board {
         display: block
     }

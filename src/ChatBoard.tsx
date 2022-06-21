@@ -1,5 +1,11 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { MdSend, MdImage, MdAdd, MdOutlineMoreVert } from "react-icons/md";
+import {
+  MdSend,
+  MdImage,
+  MdAdd,
+  MdOutlineMoreVert,
+  MdArrowBack,
+} from "react-icons/md";
 import { newMessage, clearMessage } from "./features/messagesSlice";
 import { newChannel, setCurrentChannel } from "./features/channelsSlice";
 import { useAppDispatch, useAppSelector } from "./hooks";
@@ -21,6 +27,7 @@ import {
   StyledChatBoard,
   Column,
 } from "./styles";
+import finalPropsSelectorFactory from "react-redux/es/connect/selectorFactory";
 
 const counter = (prefix: string) => {
   let count = 0;
@@ -38,10 +45,11 @@ const UserItem: React.FC<UserItemProps> = (props: UserItemProps) => {
   return (
     <StyledUserItem selected={props.selected ? "selected" : ""}>
       <div className="user_pseudo">{props.pseudo}</div>
-      <Column>
+      <div className="user_info_wrapper">
         <p className="user_username">{props.username}</p>
         <p className="user_message">Tu es par où?</p>
-      </Column>
+      </div>
+
       <Column className="user_message_status">
         <span className="user_message_time">12:15</span>
         <span className="user_count_msg">8</span>
@@ -78,8 +86,10 @@ const UserList: React.FC<UserListProps & { className?: string }> = (
 
   const onChannelClick = async (channel: Channel) => {
     dispatch(clearMessage());
-    dispatch(setCurrentChannel(channel));
-    console.log("i--- cic---");
+    dispatch(setCurrentChannel(null));
+    setTimeout(() => {
+      dispatch(setCurrentChannel(channel)); // @watch
+    }, 0);
   };
 
   useEffect(() => {
@@ -262,8 +272,6 @@ const AddImgButton: React.FC<AddImgButtonProps> = (
   const ref = useRef(null);
 
   const onUpload = useCallback((file: MessageFile) => {
-    console.log("-- on upload s--");
-    console.log(props.onData);
     if (props.onData) {
       props.onData(file);
     }
@@ -271,7 +279,6 @@ const AddImgButton: React.FC<AddImgButtonProps> = (
   }, []);
 
   const handleDisplay = useCallback(() => {
-    console.log("handle display-->");
     setDisplay(true);
   }, []);
 
@@ -314,17 +321,25 @@ const ChatBoard: React.FC<ChatBoardProps> = (props: ChatBoardProps) => {
   const propsI: UserListProps = {};
   const dispatch = useAppDispatch();
   const messages = useAppSelector((state) => state.messages).messages;
-  const currentChannel = useAppSelector(
-    (state) => state.channels.currentChannel
-  );
-  const [uploadCallback, setUploadCallback] = useState(() => () => {
-    console.log("uploadCallback");
-  });
+  const cChannel = useAppSelector((state) => state.channels.currentChannel);
+  const [mainBoardStatus, setMainBoardStatus] = useState("hidden");
+
+  const [currentChannel, updateCurrentChannel] = useState<Channel | null>(
+    cChannel
+  ); //change
+
+  useEffect(() => {
+    if (!cChannel) {
+      return;
+    }
+    updateCurrentChannel(cChannel);
+  }, [cChannel]);
 
   useEffect(() => {
     if (!currentChannel) {
       return;
     }
+    setMainBoardStatus("visible");
     getMessages(currentChannel.ref).then((list) => {
       list.map((item) => dispatch(newMessage(item as Message)));
     });
@@ -356,6 +371,11 @@ const ChatBoard: React.FC<ChatBoardProps> = (props: ChatBoardProps) => {
     }
   }, [currentChannel]);
 
+  const displayUserList = () => {
+    updateCurrentChannel(null);
+    setMainBoardStatus("hidden");
+  };
+
   // handle New Image
   let handleNewImage = async (file: MessageFile) => {
     console.log(currentChannel);
@@ -366,7 +386,7 @@ const ChatBoard: React.FC<ChatBoardProps> = (props: ChatBoardProps) => {
     const storageRef = ref(storage, `/files/${file.name}`);
     const base64Response = await fetch(file.data);
     const blob = await base64Response.blob();
-    console.log(file.name);
+
     // uploadString use upload string
     uploadBytes(storageRef, blob).then(({ metadata, ref }) => {
       getDownloadURL(ref).then((downloadURL) => {
@@ -392,10 +412,13 @@ const ChatBoard: React.FC<ChatBoardProps> = (props: ChatBoardProps) => {
   };
 
   return (
-    <StyledChatBoard className={currentChannel ? "channelSelected" : ""}>
+    <StyledChatBoard
+      className={mainBoardStatus === "visible" ? "display-msg-board" : ""}
+    >
       <UserList className={props.className || "usr-list"} {...propsI} />
       <MessageBoard className="msg-board">
         <div className="header">
+          <MdArrowBack className="ico-btn back-btn" onClick={displayUserList} />
           <p className="currentChannel">
             {currentChannel && currentChannel.name}
           </p>

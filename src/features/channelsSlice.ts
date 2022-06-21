@@ -1,27 +1,16 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 
-interface Channel {
-    name: string;
-    isProtected?: boolean;
-    ref: string;
-}
-
-
-interface ChannelState {
-    channels: Channel[],
-    currentChannel: Channel | null
-}
 
 const initialState: ChannelState = {
-    channels: [],
-    currentChannel: null 
+  channels: [],
+  currentChannel: null 
 }
 
 export const channelsSlice = createSlice({
     name: "channels",
     initialState,
     reducers: {
-      setCurrentChannel(state, action:PayloadAction<Channel>) {
+      setCurrentChannel(state, action:PayloadAction<Channel | null>) {
         state.currentChannel = action.payload;
       },
       newChannel(state, action:PayloadAction<Channel>) {
