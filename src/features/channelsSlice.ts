@@ -3,7 +3,8 @@ import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 
 const initialState: ChannelState = {
   channels: [],
-  currentChannel: null 
+  currentChannel: null,
+  displayChannelForm: false,
 }
 
 export const channelsSlice = createSlice({
@@ -15,12 +16,16 @@ export const channelsSlice = createSlice({
       },
       newChannel(state, action:PayloadAction<Channel>) {
         state.channels.push(action.payload)
-      }
+      },
+      toggleChannelForm(state) {
+        state.displayChannelForm =! state.displayChannelForm;
+      },
+    
     }
 });
 
 
-export const {setCurrentChannel, newChannel} = channelsSlice.actions;
+export const {setCurrentChannel, newChannel, toggleChannelForm} = channelsSlice.actions;
 
 export default channelsSlice.reducer;
 

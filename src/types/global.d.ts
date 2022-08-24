@@ -4,14 +4,19 @@ import React from "react";
 declare global { 
 
   interface Channel {
-      name: string;
-      isProtected?: boolean;
-      ref: string;
+    name: string;
+    ref: string;
+    createdBy: string;
+    isProtected?: boolean;
+    parent?: string;
+    type?: string;
+    contentID?: string;
   }
-
+  
   interface ChannelState {
       channels: Channel[],
-      currentChannel: Channel | null
+      currentChannel: Channel | null,
+      displayChannelForm: boolean
   }
 
   const initialState: ChannelState = {
@@ -19,10 +24,10 @@ declare global {
       currentChannel: null 
   }
 
-interface User {
+  interface User {
     name: String;
     alias: String;
-}
+  }
   
   
   interface MessagePart {
@@ -33,7 +38,7 @@ interface User {
   interface Message {
     ref?: string;
     channel: string;
-    content: string; //handle type
+    content: string; // handle type
     from: string;
     to?: string;
     part?: MessagePart;
@@ -67,13 +72,7 @@ interface User {
   interface AppState {
     messages: Message[];
   }
-  
-  interface Channel {
-    name: string;
-    isProtected?: boolean;
-    ref: string;
-  }
-  
+
   interface ChannelItemProps {
     channel: Channel;
     onChannelClick: (channel: Channel) => void;
@@ -84,6 +83,7 @@ interface User {
     data: string;
     name: string;
   }
+
   interface FileUploadProps {
     accept: string;
     display: boolean;
@@ -97,6 +97,6 @@ interface User {
     onUpload: (file: MessageFile) => void;
   }
 
-
 }
+
 export {};

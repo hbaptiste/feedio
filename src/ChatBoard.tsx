@@ -7,14 +7,25 @@ import {
   MdArrowBack,
 } from "react-icons/md";
 import { newMessage, clearMessage } from "./features/messagesSlice";
-import { newChannel, setCurrentChannel } from "./features/channelsSlice";
+import {
+  toggleChannelForm,
+  newChannel,
+  setCurrentChannel,
+} from "./features/channelsSlice";
 import { useAppDispatch, useAppSelector } from "./hooks";
-import { createChannel, getChannels } from "./services/channels";
+import {
+  createChannel,
+  getChannels,
+  getChannelThread,
+  createChannelThread,
+} from "./services/channels";
 import { getMessages, createMessage } from "./services/messages";
+import { updateCurrentView } from "./features/globalSlice";
 
 import storage from "./firebaseConfig";
 
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import ChannelForm from "./ChannelForm";
 
 import {
   Row,
@@ -27,7 +38,6 @@ import {
   StyledChatBoard,
   Column,
 } from "./styles";
-import finalPropsSelectorFactory from "react-redux/es/connect/selectorFactory";
 
 const counter = (prefix: string) => {
   let count = 0;
@@ -47,7 +57,7 @@ const UserItem: React.FC<UserItemProps> = (props: UserItemProps) => {
       <div className="user_pseudo">{props.pseudo}</div>
       <div className="user_info_wrapper">
         <p className="user_username">{props.username}</p>
-        <p className="user_message">Tu es par où?</p>
+        <p className="user_message">Test message </p>
       </div>
 
       <Column className="user_message_status">
@@ -79,14 +89,18 @@ const UserList: React.FC<UserListProps & { className?: string }> = (
   props: UserListProps
 ) => {
   const handleClick = () => {
-    alert("radicial balze");
+    dispatch(toggleChannelForm());
   };
+
   const [channels, setChannels] = useState<any>([]); //to fix
   const dispatch = useAppDispatch();
 
-  const onChannelClick = async (channel: Channel) => {
+  const onChannelClick = async (channel: Channel | null) => {
     dispatch(clearMessage());
     dispatch(setCurrentChannel(null));
+    dispatch(updateCurrentView("messageBoard"));
+
+    // handle image selection
     setTimeout(() => {
       dispatch(setCurrentChannel(channel)); // @watch
     }, 0);
@@ -139,7 +153,18 @@ const MessageBoard: React.FC<
 
 interface MessageItemProps {
   message: Message;
+  clickHandler?: (msg: MessageItemProps) => {};
 }
+
+const hash = async (txt: string) => {
+  const utf8 = new TextEncoder().encode(txt);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", utf8);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  const hashHex = hashArray
+    .map((bytes) => bytes.toString(16).padStart(2, "0"))
+    .join("");
+  return hashHex;
+};
 // rendre props explicite
 
 type ComponentMap = Record<string, (props: MessageItemProps) => JSX.Element>;
@@ -149,9 +174,68 @@ interface ImageTypeMessageProps extends MessageItemProps {}
 const ImageTypeMessage: React.FC<ImageTypeMessageProps> = ({
   message,
 }: ImageTypeMessageProps) => {
+  const dispatch = useAppDispatch();
+  const currentChannel = useAppSelector(
+    (state) => state.channels.currentChannel
+  );
+  // currentUser -->
+
+  const clickHandler = async () => {
+    const hashID = await hash(message.part?.data?.src);
+    const channel = await getChannelThread(hashID);
+    if (!channel) {
+      const channelThread: Channel | null = await createChannelThread({
+        name: "image/harris",
+        parent: "channels/" + currentChannel?.ref,
+        user: "users/lVDFeyexxq2zSxZra9AG",
+        contentID: hashID,
+      });
+
+      if (!channelThread) {
+        return;
+      }
+      dispatch(setCurrentChannel(null));
+      setTimeout(() => {
+        dispatch(setCurrentChannel(channelThread));
+        dispatch(clearMessage());
+      }, 0);
+
+      let msg: Message = {
+        channel: channelThread.ref,
+        content: "",
+        createdAt: new Date().toLocaleString(),
+        from: "users/lVDFeyexxq2zSxZra9AG", //@current user
+        part: {
+          type: "img",
+          data: {
+            src: message.part?.data?.src,
+          },
+        },
+      };
+
+      createMessage(msg)
+        .then((data) => {
+          console.log("== data ==");
+          console.log(data);
+          dispatch(newMessage(data as Message)); // we need the id
+        })
+        .catch((reason) => {
+          console.log("--- error --");
+          console.log(reason);
+        });
+    } else {
+      dispatch(setCurrentChannel(channel));
+    }
+  };
+
   return (
     <Column>
-      <img alt="" src={message.part?.data.src} width="250" />
+      <img
+        alt=""
+        onClick={clickHandler}
+        src={message.part?.data.src}
+        width="250"
+      />
       <span className="time"></span>
     </Column>
   );
@@ -322,11 +406,30 @@ const ChatBoard: React.FC<ChatBoardProps> = (props: ChatBoardProps) => {
   const dispatch = useAppDispatch();
   const messages = useAppSelector((state) => state.messages).messages;
   const cChannel = useAppSelector((state) => state.channels.currentChannel);
+  const cView = useAppSelector((state) => state.global.currentView);
+
   const [mainBoardStatus, setMainBoardStatus] = useState("hidden");
 
-  const [currentChannel, updateCurrentChannel] = useState<Channel | null>(
-    cChannel
-  ); //change
+  const [currentChannel, updateCurrentChannel] =
+    useState<Channel | null | null>(cChannel); // change
+
+  const isViewVisible = (viewName: string) => {
+    console.log(cView + " -> currentView " + viewName);
+    return cView === viewName;
+  };
+
+  // switch to router
+  useEffect(() => {
+    switch (cView) {
+      case "messageBoard":
+        setMainBoardStatus("visible");
+        break;
+      case "userList":
+        setMainBoardStatus("hidden");
+        break;
+    }
+    console.log("current cView", cView);
+  }, [cView]);
 
   useEffect(() => {
     if (!cChannel) {
@@ -339,7 +442,6 @@ const ChatBoard: React.FC<ChatBoardProps> = (props: ChatBoardProps) => {
     if (!currentChannel) {
       return;
     }
-    setMainBoardStatus("visible");
     getMessages(currentChannel.ref).then((list) => {
       list.map((item) => dispatch(newMessage(item as Message)));
     });
@@ -372,8 +474,8 @@ const ChatBoard: React.FC<ChatBoardProps> = (props: ChatBoardProps) => {
   }, [currentChannel]);
 
   const displayUserList = () => {
-    updateCurrentChannel(null);
-    setMainBoardStatus("hidden");
+    updateCurrentChannel(null); //clean curent channel
+    dispatch(updateCurrentView("userList"));
   };
 
   // handle New Image
@@ -416,38 +518,50 @@ const ChatBoard: React.FC<ChatBoardProps> = (props: ChatBoardProps) => {
       className={mainBoardStatus === "visible" ? "display-msg-board" : ""}
     >
       <UserList className={props.className || "usr-list"} {...propsI} />
-      <MessageBoard className="msg-board">
-        <div className="header">
-          <MdArrowBack className="ico-btn back-btn" onClick={displayUserList} />
-          <p className="currentChannel">
-            {currentChannel && currentChannel.name}
-          </p>
-        </div>
-        <div className="content-wrapper">
-          <div className="msg-list">
-            {messages.map((msg: any) => {
-              return (
-                <MessageItem message={msg} key={msg?.ref || messageCounter()} />
-              );
-            })}
+      {isViewVisible("channelForm") && <ChannelForm />}
+      {isViewVisible("messageBoard") && (
+        <MessageBoard className="msg-board">
+          <div className="header">
+            <MdArrowBack
+              className="ico-btn back-btn"
+              onClick={displayUserList}
+            />
+            <p className="currentChannel">
+              {currentChannel && currentChannel.name}
+            </p>
           </div>
-        </div>
-        <div className="messageForm">
-          <Row>
-            {currentChannel && (
-              <AddImgButton
-                onData={(data) => {
-                  handleNewImage(data);
-                }}
+          <div className="content-wrapper">
+            <div className="msg-list">
+              {messages.map((msg: any) => {
+                return (
+                  <MessageItem
+                    message={msg}
+                    key={msg?.ref || messageCounter()}
+                  />
+                );
+              })}
+            </div>
+          </div>
+          <div className="messageForm">
+            <Row>
+              {currentChannel && (
+                <AddImgButton
+                  onData={(data) => {
+                    handleNewImage(data);
+                  }}
+                />
+              )}
+              <textarea
+                ref={msgInputRef}
+                placeholder="Enter message or type /"
               />
-            )}
-            <textarea ref={msgInputRef} placeholder="Enter message or type /" />
-            <span className="sendBtn" onClick={onSend}>
-              <MdSend className="test" />
-            </span>
-          </Row>
-        </div>
-      </MessageBoard>
+              <span className="sendBtn" onClick={onSend}>
+                <MdSend className="test" />
+              </span>
+            </Row>
+          </div>
+        </MessageBoard>
+      )}
     </StyledChatBoard>
   );
 };

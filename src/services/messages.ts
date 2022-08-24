@@ -1,6 +1,5 @@
 import { database } from "../firebaseConfig";
-import { doc, collection, query, getDoc, addDoc, where, getDocs } from "firebase/firestore"; 
-import { channel } from "diagnostics_channel";
+import { doc, collection, query, getDoc, addDoc, where, getDocs, orderBy, limit } from "firebase/firestore"; 
 
 export const createMessage = async (message:Record<string,any>) => {
     
@@ -11,14 +10,14 @@ export const createMessage = async (message:Record<string,any>) => {
     const channelRef = data?.channel.ref;
     const msgData = Object.assign({}, data, {channel:channelRef} );
     return msgData;
-
   }
 
   export const getMessages  = async (channelRef: string) => {
       const channelDocRef  = doc(database, "channels", channelRef);
-    const QueryConstraint = where("channel",'==', channelDocRef);
+    const queryConstraint = where("channel",'==', channelDocRef);
+    const orderContraint = orderBy("createdAt", "asc")
 
-    const messageQuery = await query(collection(database, 'messages'), QueryConstraint);
+    const messageQuery = await query(collection(database, 'messages'), queryConstraint, orderContraint);
     const messages:Record<string, any>[] = []
     const messagesSnaps = await getDocs(messageQuery); 
     
