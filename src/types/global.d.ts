@@ -16,7 +16,9 @@ declare global {
   interface ChannelState {
       channels: Channel[],
       currentChannel: Channel | null,
-      displayChannelForm: boolean
+      parentChannel: Channel | null,
+      displayChannelForm: boolean,
+
   }
 
   const initialState: ChannelState = {

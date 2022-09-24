@@ -12,9 +12,9 @@ export const AppContainer = styled.div`
         minHeight: 700px;
         padding: 20px;
         width:100%;
-        border: 1px solid red;
         align-items: center;
         justify-content: center;
+        flex: 1;
     }
 `
 
@@ -41,7 +41,7 @@ export const StyledUserList = styled.div`
 `
 
 export const StyledMessageBoard = styled.div`
-    background-color: white;
+    background-color: red;
     width: 100%;
     display: flex;
     justify-content: space-between;
@@ -64,12 +64,13 @@ export const StyledMessageBoard = styled.div`
      overflow-y: auto;
      padding-top: 40px;
      padding-bottom: 50px;
-     flex: 1;
    }
    & .msg-list {
     padding: 20px 7%;
     display: flex;
     flex-direction: column;
+    border: 2px solid red;
+    flex: 1;
     & .to-me {
         background: #cfe9ba;
         align-self: flex-end
@@ -82,13 +83,14 @@ export const StyledMessageBoard = styled.div`
 
     & .messageForm {
         box-sizing: border-box;
-        position: fixed;
+        _position: fixed;
         bottom: 0px;
         width: 100%;
         margin-top: auto;
         padding: 8px;
         background: #f0f0f0;
         border: 1px solid #e5ddd5;
+        align-self: flex-end;
     }
     & textarea {
         flex: 1;
@@ -325,7 +327,7 @@ export const StyledChatBoard = styled.div`
  & .msg-board {
     display: none
  }
-&.display-msg-board {
+ &.display-msg-board {
     & .msg-board {
         display: block
     }

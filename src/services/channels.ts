@@ -1,18 +1,24 @@
 
 import { database } from "../firebaseConfig";
 import { collection, addDoc, where, query, getDocs, getDoc } from "firebase/firestore"; 
-import { exit } from "process";
 
-
-export const createChannel = async (name:string,parent:string|null) => {
+export const createChannel = async (name:string,parent:string|null = null) => {
     
-  return await addDoc(collection(database, 'channels'), {
+  const ref = await addDoc(collection(database, 'channels'), {
     name,
     isProtected: false,
     createdBy:"users/lVDFeyexxq2zSxZra9AG",
     pass: null,
     parent
   });
+  const channelDoc = await getDoc(ref);
+  let result = null;
+  if (channelDoc.exists()) {
+    const data = channelDoc.data()
+    data.ref = ref.id;
+    result = data;
+  }
+  return result as Channel;
 }
 
 export const getChannelThread = async (contentID:string) => {
@@ -21,9 +27,9 @@ export const getChannelThread = async (contentID:string) => {
   const querySnapShot = await getDocs(messageQuery);
   const result:Channel[] = [];
   querySnapShot.forEach((doc) => {
-   
-   
-    result.push(doc.data() as Channel);
+    const _data = doc.data();
+    _data.ref = doc.ref.id;
+    result.push(_data as Channel);
   }); 
   return result.pop();
 }
