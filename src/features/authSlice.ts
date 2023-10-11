@@ -1,0 +1,2 @@
+const authSlice = {};
+export { authSlice };

@@ -1,46 +1,62 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
-  MdSend,
-  MdImage,
   MdAdd,
-  MdOutlineMoreVert,
   MdArrowBack,
-  MdAlignVerticalTop,
-  MdArrowDownward,
+  MdImage,
+  MdOutlineMoreVert,
+  MdRemoveCircle,
+  MdSend,
+  MdSettings,
 } from "react-icons/md";
-import { newMessage, clearMessage } from "./features/messagesSlice";
+
+import { Item, ItemParams, Menu, useContextMenu } from "react-contexify";
+import "react-contexify/ReactContexify.css";
+import { LayersEditor } from "./components/LayersEditor";
+
 import {
-  toggleChannelForm,
-  newChannel,
+  clearMessage,
+  delMessage,
+  loadMessages,
+  newMessage,
+} from "./features/messagesSlice";
+
+import {
+  getChannelsByUser,
   setCurrentChannel,
   setParentChannel,
 } from "./features/channelsSlice";
+
 import { useAppDispatch, useAppSelector } from "./hooks";
+
+import { createChannelThread, getChannelThread } from "./services/channels";
+
+import { updateMessage } from "./services/messages";
+
+// global slice
 import {
-  createChannel,
-  getChannels,
-  getChannelThread,
-  createChannelThread,
-} from "./services/channels";
-import { getMessages, createMessage } from "./services/messages";
-import { updateCurrentView } from "./features/globalSlice";
+  displayAnnotations,
+  editMessage,
+  updateCurrentView,
+  updateTextSelection,
+} from "./features/globalSlice";
 
-import storage from "./firebaseConfig";
-
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { serverTimestamp } from "firebase/firestore";
 import ChannelForm from "./ChannelForm";
 
+import { useNavigate } from "react-router-dom";
 import {
+  Column,
   Row,
-  StyledUserList,
-  StyledMessageBoard,
-  StyledUserItem,
-  StyleMessageItem,
-  StyledHeaderZone,
   StyledChannelItem,
   StyledChatBoard,
-  Column,
+  StyledHeaderZone,
+  StyledMessageBoard,
+  StyledUserItem,
+  StyledUserList,
+  StyleMessageItem,
 } from "./styles";
+
+import "rangy/lib/rangy-serializer";
 
 const counter = (prefix: string) => {
   let count = 0;
@@ -91,18 +107,19 @@ const ChannelItem: React.FC<ChannelItemProps> = (props: ChannelItemProps) => {
 const UserList: React.FC<UserListProps & { className?: string }> = (
   props: UserListProps
 ) => {
-  const handleClick = () => {
-    dispatch(updateCurrentView("channelForm"))
-  };
-
-  const [channels, setChannels] = useState<any>([]); //to fix
+  const user = useAppSelector((state) => state.global.user);
+  const channels = useAppSelector((state) => state.channels.channels);
   const dispatch = useAppDispatch();
+  const navigate = useNavigate();
+
+  const handleClick = () => {
+    navigate("/channel/new");
+  };
 
   const onChannelClick = async (channel: Channel | null) => {
     dispatch(clearMessage());
     dispatch(setCurrentChannel(null));
     dispatch(updateCurrentView("messageBoard"));
-
     // handle image selection
     setTimeout(() => {
       dispatch(setCurrentChannel(channel)); // @watch
@@ -110,10 +127,9 @@ const UserList: React.FC<UserListProps & { className?: string }> = (
   };
 
   useEffect(() => {
-    getChannels().then((channels) => {
-      setChannels(channels);
-    });
-  }, []);
+    if (!user) return;
+    dispatch(getChannelsByUser(user));
+  }, [user]);
 
   return (
     <StyledUserList {...props}>
@@ -123,14 +139,23 @@ const UserList: React.FC<UserListProps & { className?: string }> = (
         </div>
         <AddChannelButton className="addChannelButton" onClick={handleClick} />
       </StyledHeaderZone>
-      <ul className="userList">
-        <UserItem pseudo="HB" username="Belleville Summer school" />
+      <ul className="userList" style={{ display: "none" }}>
         <UserItem
+          pseudo="HB"
+          username="Belleville Summer school"
+          key="user-2"
+        />
+        <UserItem
+          key="user-1"
           pseudo="HB"
           selected
           username="Paris Summer you better know"
         />
-        <UserItem pseudo="DE" username="Belleville Summer Strange thins" />
+        <UserItem
+          key="user-3"
+          pseudo="DE"
+          username="Belleville Summer Strange thins"
+        />
       </ul>
 
       <ul className="channelList">
@@ -157,6 +182,8 @@ const MessageBoard: React.FC<
 interface MessageItemProps {
   message: Message;
   clickHandler?: (msg: MessageItemProps) => {};
+  onContextMenu?: (e: React.MouseEvent, message?: Message) => void;
+  onTextSelection?: (selection: TextSelection, message: Message) => void;
 }
 
 const hash = async (txt: string) => {
@@ -197,17 +224,18 @@ const ImageTypeMessage: React.FC<ImageTypeMessageProps> = ({
       if (!channelThread) {
         return;
       }
-      dispatch(setParentChannel(currentChannel))
+      // A VERIFIER
+      dispatch(setParentChannel(currentChannel));
       dispatch(setCurrentChannel(null));
       setTimeout(() => {
         dispatch(setCurrentChannel(channelThread));
         dispatch(clearMessage());
-      }, 0);
+      }, 0); //strange
 
       let msg: Message = {
         channel: channelThread.ref,
         content: "",
-        createdAt: new Date().toLocaleString(),
+        createdAt: serverTimestamp(),
         from: "users/lVDFeyexxq2zSxZra9AG", //@current user
         part: {
           type: "img",
@@ -216,17 +244,8 @@ const ImageTypeMessage: React.FC<ImageTypeMessageProps> = ({
           },
         },
       };
-
-      createMessage(msg)
-        .then((data) => {
-          console.log("== data ==");
-          console.log(data);
-          dispatch(newMessage(data as Message)); // we need the id
-        })
-        .catch((reason) => {
-          console.log("--- error --");
-          console.log(reason);
-        });
+      //dispatch create message
+      dispatch(newMessage(msg as Message)); // we need the id
     } else {
       dispatch(setCurrentChannel(channel));
     }
@@ -241,6 +260,9 @@ const ImageTypeMessage: React.FC<ImageTypeMessageProps> = ({
         width="250"
       />
       <span className="time"></span>
+      {message && message.content != "" && (
+        <p className="content">{message.content}</p>
+      )}
     </Column>
   );
 };
@@ -263,22 +285,100 @@ const MessagePartRenderer: React.FC<MessagePartRendererProps> = (
 
 const MessageItem: React.FC<MessageItemProps> = ({
   message,
+  onContextMenu,
+  onTextSelection,
 }: MessageItemProps) => {
-  const handleMouseEnter = ()=>{
-    alert("enter")
-  }
-  const handleMouseLeave =() => {
-    alert("leave")
-  }
-  // const className = message?.receive === true ? "to-me" : "";
+  const dispatch = useAppDispatch();
+
+  const handleMouseEnter = () => {
+    //alert("enter")
+  };
+
+  const handleMouseLeave = () => {
+    //alert("leave")
+  };
+
+  const handleContextMenu = (e: React.MouseEvent) => {
+    if (onContextMenu) {
+      onContextMenu(e, message);
+    }
+  };
+  const handleSelection = (e: React.MouseEvent) => {
+    const selection = document.getSelection();
+    const range = selection ? selection.getRangeAt(0) : null;
+    const textSelection = selection ? selection.toString() : null;
+    console.log("strange", selection);
+
+    if (!selection) {
+      return;
+    }
+    if (onTextSelection) {
+      onTextSelection(
+        {
+          content: textSelection,
+          startOffset: range?.startOffset || 0,
+          endOffset: range?.endOffset || 0,
+        },
+        message
+      );
+    }
+  };
+  const showAnnotations = (e: React.MouseEvent) => {
+    dispatch(displayAnnotations(message));
+  };
   return (
     <StyleMessageItem>
-      <MdArrowDownward/>
       {message.part && <MessagePartRenderer message={message} />}
       {!message.part && (
-        <div className="wrapper" onMouseLeave={handleMouseLeave} onMouseEnter={handleMouseEnter}>
-          <p className="content">{message.content}</p>
-          <span className="time">{message.createdAt}</span>
+        <div
+          key={message.ref}
+          id={message.ref}
+          onContextMenu={handleContextMenu}
+          className="wrapper"
+          onMouseLeave={handleMouseLeave}
+          onMouseEnter={handleMouseEnter}
+          style={{ position: "relative" }}
+        >
+          <MdSettings
+            onClick={showAnnotations}
+            style={{
+              display: "flex",
+              alignSelf: "right",
+              border: "1px solid red",
+            }}
+          />
+          <p className="content" onMouseUp={handleSelection}>
+            {message.content}
+          </p>
+          <span className="left">
+            <em>{message.metadata?.type}</em>
+          </span>
+          <span className="right time">{message?.createdAt?.toString()}</span>
+          <div
+            className="annotation"
+            style={{
+              border: "1px solid red",
+              position: "absolute",
+              top: "0px",
+              width: "100%",
+              height: "100%",
+              display: "none",
+            }}
+          >
+            <div
+              style={{
+                display: "inline-block",
+                position: "absolute",
+                top: "20px",
+                left: "5px",
+                width: "243px",
+                background: "orangered",
+                opacity: 0.7,
+              }}
+            >
+              ...
+            </div>
+          </div>
         </div>
       )}
     </StyleMessageItem>
@@ -364,13 +464,15 @@ const AddImgButton: React.FC<AddImgButtonProps> = (
   props: AddImgButtonProps
 ) => {
   const [display, setDisplay] = React.useState(false);
+  const [uploadFile, setUploadFile] = React.useState<MessageFile | null>();
   const ref = useRef(null);
 
   const onUpload = useCallback((file: MessageFile) => {
+    setUploadFile(file);
+    setDisplay(false);
     if (props.onData) {
       props.onData(file);
     }
-    setDisplay(false);
   }, []);
 
   const handleDisplay = useCallback(() => {
@@ -382,6 +484,9 @@ const AddImgButton: React.FC<AddImgButtonProps> = (
   const buttonRender = (doUpload: () => void) => {
     return <MdImage className="addImgBtn" onClick={doUpload} />;
   };
+  const onRemovePreview = (e: React.MouseEvent) => {
+    setUploadFile(null);
+  };
 
   return (
     <>
@@ -392,6 +497,12 @@ const AddImgButton: React.FC<AddImgButtonProps> = (
         onError={onError}
         render={buttonRender}
       ></FileUpload>
+      {uploadFile && (
+        <div className="preview-wrapper">
+          <MdRemoveCircle className="removePreview" onClick={onRemovePreview} />
+          <img className="imgPreview" src={uploadFile.data} />
+        </div>
+      )}
     </>
   );
 };
@@ -418,17 +529,32 @@ const ChatBoard: React.FC<ChatBoardProps> = (props: ChatBoardProps) => {
   const messages = useAppSelector((state) => state.messages).messages;
   const cChannel = useAppSelector((state) => state.channels.currentChannel);
   const cView = useAppSelector((state) => state.global.currentView);
-  const parentChannel = useAppSelector(state => state.channels.parentChannel) 
+  const parentChannel = useAppSelector((state) => state.channels.parentChannel);
+  // user
+  const currentUser = useAppSelector((state) => state.global.user);
 
+  // images
+  const [availableFile, setAvailableFile] = useState<MessageFile | null>();
+
+  // current edited Message
+  const editedMessage = useAppSelector((state) => state.global.editedMessage);
   const [mainBoardStatus, setMainBoardStatus] = useState("hidden");
+  const [currentChannel, updateCurrentChannel] = useState<Channel | null>(
+    cChannel
+  ); // change
 
-  const [currentChannel, updateCurrentChannel] =
-    useState<Channel | null | null>(cChannel); // change
+  // sidev iew
+  const displayLayerEditor = useAppSelector(
+    (state) => state.global.displayLayerEditor
+  );
+  useEffect(() => {
+    console.log(">>messages");
+    console.log(messages);
+  }, [messages]);
 
   const isViewVisible = (viewName: string) => {
     return cView === viewName;
   };
-
   // switch to router
   useEffect(() => {
     switch (cView) {
@@ -441,7 +567,6 @@ const ChatBoard: React.FC<ChatBoardProps> = (props: ChatBoardProps) => {
       case "channelForm":
         setMainBoardStatus("hidden");
         break;
-        
     }
     console.log("current cView", cView);
   }, [cView]);
@@ -458,123 +583,168 @@ const ChatBoard: React.FC<ChatBoardProps> = (props: ChatBoardProps) => {
       return;
     }
     dispatch(clearMessage());
-    getMessages(cChannel.ref).then((list) => {
-      console.log('--inside get Messages --');
-      console.log(list);
-      list.map((item) => dispatch(newMessage(item as Message))); //dispatch list message
-    }).catch((reason) => {
-      console.log("== reason ==");
-      console.log(reason);
-
-    })
+    dispatch(loadMessages(cChannel.ref));
   }, [cChannel]);
+
+  // context menu
+  const { show } = useContextMenu({
+    id: "content_id",
+  });
 
   //? comment
   // ref
   const msgInputRef = useRef<HTMLTextAreaElement>(null);
 
+  /**
+   * messageParser
+   * ---
+   * :quote
+   * tags: desnr, sefem, sesm
+   *
+   */
+  const parseMessage = (msg: string): [string, Record<string, any> | null] => {
+    const [text, metadata] = msg.split("---");
+    if (!metadata) {
+      return [text, null];
+    }
+    const metadataRegex = new RegExp(/((^:\w+)\s(.*))/, "ig");
+    const conf = metadata
+      .split("\n")
+      .reduce((result: Record<string, any>, item) => {
+        const regResult = metadataRegex.exec(item);
+        if (regResult) {
+          let [_, __, key, value] = regResult;
+          const cleanedKey = key.replace(":", "");
+          result[cleanedKey as string] = value; //more clean with message type
+        }
+        return result;
+      }, {});
+    return [text, conf];
+  };
+
   // callback
-  const onSend = useCallback(() => {
+  const onSend = useCallback(async () => {
     if (!currentChannel) {
       return;
     }
-    let msg: Message = {
-      channel: currentChannel.ref,
-      content: msgInputRef?.current?.value || "",
-      createdAt: new Date().toLocaleString(),
-      from: "raid", //@current user
-    };
+    let [text, category] = parseMessage(msgInputRef?.current?.value || "");
 
-    createMessage(msg).then((data) => {
-      dispatch(newMessage(data as Message)); // we need the id
-    });
+    if (text.trim().length == 0) return; // tost empty message ou griser boutton
+    let msg: Message;
+    if (editedMessage) {
+      msg = JSON.parse(JSON.stringify(editedMessage));
+      msg.content = text;
+      msg.metadata = { category };
+      await updateMessage(msg); // use dispatch
+    } else {
+      const metadata = {
+        category,
+        file: availableFile || null,
+      };
+      msg = {
+        channel: currentChannel.ref,
+        content: text || "",
+        createdAt: serverTimestamp(),
+        from: currentUser?.ref,
+        metadata: metadata,
+      };
+      // create the message
+      dispatch(newMessage(msg as Message)); // we need the id
+    }
 
+    //clear textarea
     if (msgInputRef.current !== null) {
       msgInputRef.current.value = "";
       msgInputRef.current.focus();
     }
-  }, [currentChannel]);
+    // clear file
+  }, [currentChannel, editedMessage, availableFile]);
 
   const displayUserList = () => {
-    updateCurrentChannel(null); //clean curent channel
-    dispatch(updateCurrentView("userList"));
+    //updateCurrentChannel(null); //clean curent channel
+    //dispatch(updateCurrentView("userList"));
   };
 
-  const goBack = ()=> {
+  const goBack = () => {
     if (currentChannel && currentChannel?.parent) {
       dispatch(setCurrentChannel(parentChannel));
       dispatch(setParentChannel(null));
       //dispatch(updateCurrentView("messageBoard"));
     } else {
-     updateCurrentChannel(null);
-     dispatch(updateCurrentView("userList"))
+      updateCurrentChannel(null);
+      dispatch(updateCurrentView("userList"));
     }
-  }
+  };
 
   // handle New Image
-  let handleNewImage = async (file: MessageFile) => {
-    console.log(currentChannel);
-    if (!currentChannel) {
-      return;
-    }
+  let handleNewImage = (file: MessageFile) => {
+    setAvailableFile(file);
+  };
 
-    const storageRef = ref(storage, `/files/${file.name}`);
-    const base64Response = await fetch(file.data);
-    const blob = await base64Response.blob();
-
-    // uploadString use upload string
-    uploadBytes(storageRef, blob).then(({ metadata, ref }) => {
-      getDownloadURL(ref).then((downloadURL) => {
-        console.log(metadata, downloadURL);
-        const imgPart = {
-          type: "img",
-          data: {
-            name: metadata.name,
-            src: downloadURL,
-          },
-        };
-        const msg: Message = {
-          content: "", //permettre de déclarer
-          channel: currentChannel.ref,
-          createdAt: new Date().toLocaleString(),
-          from: "me",
-          part: imgPart,
-        };
-        createMessage(msg).then((data) => {
-          dispatch(newMessage(data as Message));
-        });
-      });
+  // Context Menu
+  const onContextMenu = (event: React.MouseEvent, message?: Message) => {
+    show({
+      event,
+      props: {
+        message: message,
+      },
     });
+  };
+  // Handle text selection
+  const handleEditItemClick = (data: ItemParams) => {
+    const message = data.props.message;
+    dispatch(editMessage(message));
+  };
+
+  const handleDeleteItemClick = (data: ItemParams) => {
+    dispatch(delMessage(data.props.message));
+  };
+
+  const onTextSelection = (selection: TextSelection, message: Message) => {
+    dispatch(updateTextSelection({ selection, message }));
   };
 
   return (
     <StyledChatBoard
       className={mainBoardStatus === "visible" ? "display-msg-board" : ""}
     >
-      { isViewVisible("userList") && <UserList className={props.className || "usr-list"} {...propsI} /> }
-      { isViewVisible("channelForm") && <ChannelForm /> }
-      { isViewVisible("messageBoard") && (
+      {isViewVisible("userList") && (
+        <UserList className={props.className || "usr-list"} {...propsI} />
+      )}
+      {isViewVisible("channelForm") && <ChannelForm />}
+      {isViewVisible("messageBoard") && (
         <MessageBoard className="msg-board">
           <div className="header">
-            <MdArrowBack
-              className="ico-btn back-btn"
-              onClick={goBack}
-            />
+            <MdArrowBack className="ico-btn back-btn" onClick={goBack} />
             <p className="currentChannel">
               {currentChannel && currentChannel.name}
             </p>
           </div>
           <div className="content-wrapper">
             <div className="msg-list">
-              {messages.map((msg: any) => {
-                return (
-                  <MessageItem
-                    message={msg}
-                    key={msg?.ref || messageCounter()}
-                  />
-                );
-              })}
+              <Menu id="content_id">
+                <Item id="edit" onClick={handleEditItemClick}>
+                  Edit
+                </Item>
+                <Item id="delete" onClick={handleDeleteItemClick}>
+                  Delete
+                </Item>
+              </Menu>
+
+              {Array.isArray(messages) &&
+                messages.length &&
+                messages.map((msg: any) => {
+                  return (
+                    <MessageItem
+                      onContextMenu={onContextMenu}
+                      onTextSelection={onTextSelection}
+                      message={msg}
+                      key={msg?.ref || messageCounter()}
+                    />
+                  );
+                })}
             </div>
+            {displayLayerEditor && <LayersEditor />}
           </div>
           <div className="messageForm">
             <Row>
@@ -587,6 +757,7 @@ const ChatBoard: React.FC<ChatBoardProps> = (props: ChatBoardProps) => {
               )}
               <textarea
                 ref={msgInputRef}
+                defaultValue={editedMessage?.content || ""}
                 placeholder="Enter message or type /"
               />
               <span className="sendBtn" onClick={onSend}>

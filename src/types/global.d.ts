@@ -1,8 +1,9 @@
 import React from "react";
+import { FieldValue } from "firebase/firestore";
+type Timestamp = firebase.firestore.Timestamp;
 
 // style
-declare global { 
-
+declare global {
   interface Channel {
     name: string;
     ref: string;
@@ -12,31 +13,32 @@ declare global {
     type?: string;
     contentID?: string;
   }
-  
-  interface ChannelState {
-      channels: Channel[],
-      currentChannel: Channel | null,
-      parentChannel: Channel | null,
-      displayChannelForm: boolean,
 
+  type Metadata = Record<string, any>;
+
+  interface ChannelState {
+    channels: Channel[];
+    currentChannel: Channel | null;
+    parentChannel: Channel | null;
+    displayChannelForm: boolean;
   }
 
   const initialState: ChannelState = {
-      channels: [],
-      currentChannel: null 
-  }
+    channels: [],
+    currentChannel: null,
+  };
 
   interface User {
     name: String;
     alias: String;
+    [x: string]: any;
   }
-  
-  
+
   interface MessagePart {
     type: string;
     data: Record<string, any>;
   }
-  
+
   interface Message {
     ref?: string;
     channel: string;
@@ -44,25 +46,49 @@ declare global {
     from: string;
     to?: string;
     part?: MessagePart;
-    createdAt: string;
+    createdAt: Timestamp;
+    metadata?: Metadata;
+    status?: Metadata;
   }
-  
+
+  interface TextSelection {
+    startOffset: number | null;
+    endOffset: number | null;
+    content: string | null;
+  }
+
+  interface Annotation {
+    selection: TextSelection;
+    messageRef: string;
+    type: string;
+    data?: Record<string, any>;
+  }
+
+  interface Invitation {
+    ref?: String;
+    from: string;
+    to: string;
+    channel: String;
+    status: Record<string, any>;
+    metadata: Metadata;
+  }
+
   interface ChatBoardProps {
-    lastMessage: String;
+    lastMessage?: String;
     messages: Message[];
     className?: string;
   }
-  
- interface UserListProps {
+
+  interface UserListProps {
     users?: String[];
   }
-  
+
   interface MessageBoardProps {
     messages?: Message[];
     children: JSX.Element | JSX.Element[];
     className?: string;
   }
-  
+
   interface UserItemProps {
     picto?: string;
     pseudo: string;
@@ -70,7 +96,7 @@ declare global {
     messageCount?: number;
     selected?: boolean;
   }
-  
+
   interface AppState {
     messages: Message[];
   }
@@ -79,7 +105,6 @@ declare global {
     channel: Channel;
     onChannelClick: (channel: Channel) => void;
   }
-
 
   interface MessageFile {
     data: string;
@@ -91,14 +116,13 @@ declare global {
     display: boolean;
     onUpload: (file: MessageFile) => void;
     onError: () => void;
-    render: (doUpload:() => void) => React.ReactNode;
+    render: (doUpload: () => void) => React.ReactNode;
   }
 
   interface useFileUploaderProps {
     ref: React.RefObject<HTMLInputElement>;
     onUpload: (file: MessageFile) => void;
   }
-
 }
 
 export {};

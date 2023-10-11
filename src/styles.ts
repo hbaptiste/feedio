@@ -40,37 +40,49 @@ export const StyledUserList = styled.div`
     width: 100%;
 `
 
-export const StyledMessageBoard = styled.div`
+export const StyledMessageBoard = styled.div.attrs( props=> ({
+    className: props.className
+}))`
     background-color: red;
     width: 100%;
     display: flex;
     justify-content: space-between;
     flex-direction: column;
     overflow-y: scroll;
+    .msg-board { 
+        display: flex;
+        background: yellow;
+    }
     & .header {
-        position: fixed;
+        display: flex;
+        top: 0;
+        left: 0;
+        right: 0;
         padding-left: 3px;
+        padding-right: 20px;
         width: 100%;
         display: flex;
         height: 45px;
         align-items: center;
-        flex: 1;
         z-index: 100;
         background: #f0f0f0;
-        border: 1px solid #e5ddd5;
+        _border: 1px solid #e5ddd5;
     }
    & .content-wrapper {
      background-color: #e5ddd5;
-     overflow-y: auto;
-     padding-top: 40px;
-     padding-bottom: 50px;
+     overflow: hidden;
+     height: 100%;
+     display: flex;
+     flex-grow: 1;
+     margin-bottom: auto;
    }
    & .msg-list {
     padding: 20px 7%;
+    width: 100%;
+    height: 100%;
+    overflow-y: scroll;
     display: flex;
     flex-direction: column;
-    border: 2px solid red;
-    flex: 1;
     & .to-me {
         background: #cfe9ba;
         align-self: flex-end
@@ -83,10 +95,10 @@ export const StyledMessageBoard = styled.div`
 
     & .messageForm {
         box-sizing: border-box;
-        _position: fixed;
-        bottom: 0px;
+        display: flex;
+        margin-bottom: 0px;
         width: 100%;
-        margin-top: auto;
+        _margin-top: auto;
         padding: 8px;
         background: #f0f0f0;
         border: 1px solid #e5ddd5;
@@ -261,6 +273,8 @@ export const StyleMessageItem  = styled.div`
     & .content {
         margin: 0px;
         padding: 5px;
+        text-align: left;
+        line-height: 1.3
     }
     & .time {
         opacity: 0.6;
@@ -324,12 +338,16 @@ export const StyledChannelZone = styled.div`
 // add animation back buttoon
 export const StyledChatBoard = styled.div`
  width: 100%;
+ display: flex;
+ height: 100%;
+
  & .msg-board {
     display: none
  }
+
  &.display-msg-board {
     & .msg-board {
-        display: block
+        display: flex
     }
     & .usr-list {
         display: none

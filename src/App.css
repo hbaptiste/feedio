@@ -1,5 +1,6 @@
 .App {
   text-align: center;
+  height: 100%;
 }
 
 .App-logo {
@@ -26,6 +27,52 @@
 
 .App-link {
   color: #61dafb;
+}
+.imgPreview{
+  width: 70px;
+  height: 70px;
+  padding: 10px;
+  border:blue
+}
+.preview-wrapper{
+  position: relative;
+}
+
+.removePreview {
+  position: absolute;
+  right: -2px;
+  top: -2px;
+}
+
+.red-border{
+  border:1px solid orangered
+}
+.pb-5{
+  padding-bottom: 5px;
+}
+.p-5{
+  padding: 5px;
+}
+.mb-5{
+  margin-bottom: 5px;
+}
+
+.flex{
+  display: flex;
+}
+
+.justify-end {
+  justify-content: end;
+}
+
+.justify-between {
+  justify-content: space-between; 
+}
+.justify-center {
+  justify-content: center;
+}
+.align-center{
+  align-items: center;
 }
 
 @keyframes App-logo-spin {

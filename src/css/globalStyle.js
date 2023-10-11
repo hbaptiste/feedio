@@ -11,10 +11,15 @@ const GlobalStyle = createGlobalStyle`
     --info-message:rgba(225,245,254,.92); /* blue messages */
     --font-size-1: 14px;
     }
-    html {
-       
+    html, body {
+        height: 100%;
+        height: 100vh;
+        margin: 0;
     }
-    
+    #root {
+        min-height: 100vh;
+        height: 100%;
+    }
     * {
         margin: 0;
         padding: 0;
