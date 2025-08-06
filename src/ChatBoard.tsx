@@ -1,4 +1,11 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, {
+  DOMElement,
+  ReactNode,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import {
   MdAdd,
   MdArrowBack,
@@ -12,6 +19,7 @@ import {
 import { Item, ItemParams, Menu, useContextMenu } from "react-contexify";
 import "react-contexify/ReactContexify.css";
 import { LayersEditor } from "./components/LayersEditor";
+import { mySchema } from "./components/ContentEditor";
 
 import {
   clearMessage,
@@ -28,9 +36,14 @@ import {
 
 import { useAppDispatch, useAppSelector } from "./hooks";
 
-import { createChannelThread, getChannelThread } from "./services/channels";
+import {
+  createChannelThread,
+  getChannelById,
+  getChannelThread,
+} from "./services/channels";
 
 import { updateMessage } from "./services/messages";
+import { findMessages } from "./services/search";
 
 // global slice
 import {
@@ -43,7 +56,7 @@ import {
 import { serverTimestamp } from "firebase/firestore";
 import ChannelForm from "./ChannelForm";
 
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import {
   Column,
   Row,
@@ -57,6 +70,13 @@ import {
 } from "./styles";
 
 import "rangy/lib/rangy-serializer";
+import { ContentEditor } from "./components/ContentEditor";
+import { EditorState } from "prosemirror-state";
+
+import { DOMSerializer, Node } from "prosemirror-model";
+
+// serializer
+const serializer = DOMSerializer.fromSchema(mySchema);
 
 const counter = (prefix: string) => {
   let count = 0;
@@ -117,13 +137,10 @@ const UserList: React.FC<UserListProps & { className?: string }> = (
   };
 
   const onChannelClick = async (channel: Channel | null) => {
-    dispatch(clearMessage());
-    dispatch(setCurrentChannel(null));
-    dispatch(updateCurrentView("messageBoard"));
-    // handle image selection
-    setTimeout(() => {
-      dispatch(setCurrentChannel(channel)); // @watch
-    }, 0);
+    if (!channel) {
+      return;
+    }
+    navigate(`channel/${channel.ref}`);
   };
 
   useEffect(() => {
@@ -244,7 +261,10 @@ const ImageTypeMessage: React.FC<ImageTypeMessageProps> = ({
           },
         },
       };
-      //dispatch create message
+
+      // Strange
+      const data = await findMessages(["nouveau", "pour", "temps"]);
+      // Dispatch create message
       dispatch(newMessage(msg as Message)); // we need the id
     } else {
       dispatch(setCurrentChannel(channel));
@@ -303,11 +323,39 @@ const MessageItem: React.FC<MessageItemProps> = ({
       onContextMenu(e, message);
     }
   };
+
+  // serialize ProseMirror
+  const serializeNode = (
+    jsonNode: Record<string, any> | null
+  ): string | null => {
+    try {
+      if (!jsonNode) return null;
+      const wrapper = document.createElement("div");
+      const node = Node.fromJSON(mySchema, jsonNode);
+      if (!node) {
+        wrapper.appendChild(new Text(""));
+      } else {
+        const serializer = DOMSerializer.fromSchema(mySchema);
+        const nodes = serializer.serializeNode(node);
+        wrapper.appendChild(nodes);
+      }
+      return wrapper.innerHTML;
+    } catch (e) {
+      console.log(">>>e<<<<");
+      console.log(e);
+      return null;
+    }
+  };
+
   const handleSelection = (e: React.MouseEvent) => {
     const selection = document.getSelection();
     const range = selection ? selection.getRangeAt(0) : null;
     const textSelection = selection ? selection.toString() : null;
-    console.log("strange", selection);
+    // Show Selection
+    const span = document.createElement("span");
+    span.style.background = "lightskyblue";
+    span.textContent = textSelection;
+    range?.surroundContents(span);
 
     if (!selection) {
       return;
@@ -318,6 +366,7 @@ const MessageItem: React.FC<MessageItemProps> = ({
           content: textSelection,
           startOffset: range?.startOffset || 0,
           endOffset: range?.endOffset || 0,
+          dom: span,
         },
         message
       );
@@ -347,9 +396,17 @@ const MessageItem: React.FC<MessageItemProps> = ({
               border: "1px solid red",
             }}
           />
-          <p className="content" onMouseUp={handleSelection}>
-            {message.content}
-          </p>
+          <a>Display annotation</a>
+          <p
+            className="content"
+            onMouseUp={handleSelection}
+            dangerouslySetInnerHTML={{
+              __html:
+                serializeNode(message?.jsonDoc?.doc?.content[0]) ||
+                message.content,
+            }}
+          />
+
           <span className="left">
             <em>{message.metadata?.type}</em>
           </span>
@@ -526,12 +583,20 @@ const AddChannelButton: React.FC<
 const ChatBoard: React.FC<ChatBoardProps> = (props: ChatBoardProps) => {
   const propsI: UserListProps = {};
   const dispatch = useAppDispatch();
+  const { channelId = null } = useParams();
+
+  //> selector
   const messages = useAppSelector((state) => state.messages).messages;
+
   const cChannel = useAppSelector((state) => state.channels.currentChannel);
+
   const cView = useAppSelector((state) => state.global.currentView);
   const parentChannel = useAppSelector((state) => state.channels.parentChannel);
-  // user
+  //> user
   const currentUser = useAppSelector((state) => state.global.user);
+
+  // editorState
+  const [editorState, setEditorState] = useState<EditorState | null>(null);
 
   // images
   const [availableFile, setAvailableFile] = useState<MessageFile | null>();
@@ -543,14 +608,33 @@ const ChatBoard: React.FC<ChatBoardProps> = (props: ChatBoardProps) => {
     cChannel
   ); // change
 
-  // sidev iew
   const displayLayerEditor = useAppSelector(
     (state) => state.global.displayLayerEditor
   );
+
   useEffect(() => {
-    console.log(">>messages");
-    console.log(messages);
-  }, [messages]);
+    if (!channelId) {
+      return;
+    }
+    const getChannel = async () => {
+      const channel = await getChannelById(channelId);
+      console.log(channel);
+      if (!channel) {
+        return;
+      }
+      // new channel
+      updateCurrentChannel(channel);
+      dispatch(clearMessage());
+      dispatch(setCurrentChannel(null));
+      dispatch(updateCurrentView("messageBoard"));
+      // handle image selection
+      setTimeout(() => {
+        dispatch(setCurrentChannel(channel)); // @watch
+      }, 0);
+    };
+
+    getChannel().catch(console.error);
+  }, [channelId]);
 
   const isViewVisible = (viewName: string) => {
     return cView === viewName;
@@ -578,13 +662,14 @@ const ChatBoard: React.FC<ChatBoardProps> = (props: ChatBoardProps) => {
     updateCurrentChannel(cChannel);
   }, [cChannel]);
 
+  // Load Message
   useEffect(() => {
-    if (!cChannel) {
+    if (!currentChannel) {
       return;
     }
     dispatch(clearMessage());
-    dispatch(loadMessages(cChannel.ref));
-  }, [cChannel]);
+    dispatch(loadMessages(currentChannel.ref));
+  }, [currentChannel]);
 
   // context menu
   const { show } = useContextMenu({
@@ -627,13 +712,18 @@ const ChatBoard: React.FC<ChatBoardProps> = (props: ChatBoardProps) => {
     if (!currentChannel) {
       return;
     }
-    let [text, category] = parseMessage(msgInputRef?.current?.value || "");
 
-    if (text.trim().length == 0) return; // tost empty message ou griser boutton
+    const rest = await findMessages(["nouveau", "lucrative", "trouver"]);
+    console.log(">>rest>>>");
+    console.log(rest);
+    const text = editorState?.doc.textContent;
+    // | > text and category should be move to
+    const category = null;
+    if (text && text.trim().length == 0) return; // tost empty message ou griser boutton
     let msg: Message;
     if (editedMessage) {
       msg = JSON.parse(JSON.stringify(editedMessage));
-      msg.content = text;
+      msg.content = editorState?.doc.content.toJSON();
       msg.metadata = { category };
       await updateMessage(msg); // use dispatch
     } else {
@@ -644,6 +734,7 @@ const ChatBoard: React.FC<ChatBoardProps> = (props: ChatBoardProps) => {
       msg = {
         channel: currentChannel.ref,
         content: text || "",
+        jsonDoc: editorState?.toJSON(),
         createdAt: serverTimestamp(),
         from: currentUser?.ref,
         metadata: metadata,
@@ -658,7 +749,7 @@ const ChatBoard: React.FC<ChatBoardProps> = (props: ChatBoardProps) => {
       msgInputRef.current.focus();
     }
     // clear file
-  }, [currentChannel, editedMessage, availableFile]);
+  }, [currentChannel, editedMessage, availableFile, editorState]);
 
   const displayUserList = () => {
     //updateCurrentChannel(null); //clean curent channel
@@ -680,6 +771,7 @@ const ChatBoard: React.FC<ChatBoardProps> = (props: ChatBoardProps) => {
   let handleNewImage = (file: MessageFile) => {
     setAvailableFile(file);
   };
+  //update
 
   // Context Menu
   const onContextMenu = (event: React.MouseEvent, message?: Message) => {
@@ -700,8 +792,16 @@ const ChatBoard: React.FC<ChatBoardProps> = (props: ChatBoardProps) => {
     dispatch(delMessage(data.props.message));
   };
 
-  const onTextSelection = (selection: TextSelection, message: Message) => {
-    dispatch(updateTextSelection({ selection, message }));
+  const onTextSelection = (
+    selection: TextSelection,
+    message: Message,
+    dom: HTMLElement
+  ) => {
+    //dispatch(updateTextSelection({ selection, message }));
+  };
+
+  const onEditorStateChanged = (editorState: EditorState) => {
+    setEditorState(editorState);
   };
 
   return (
@@ -737,7 +837,7 @@ const ChatBoard: React.FC<ChatBoardProps> = (props: ChatBoardProps) => {
                   return (
                     <MessageItem
                       onContextMenu={onContextMenu}
-                      onTextSelection={onTextSelection}
+                      //onTextSelection={onTextSelection}
                       message={msg}
                       key={msg?.ref || messageCounter()}
                     />
@@ -755,11 +855,15 @@ const ChatBoard: React.FC<ChatBoardProps> = (props: ChatBoardProps) => {
                   }}
                 />
               )}
+              {/*
               <textarea
                 ref={msgInputRef}
                 defaultValue={editedMessage?.content || ""}
                 placeholder="Enter message or type /"
-              />
+                />*/}
+              <div>
+                <ContentEditor onUpdate={onEditorStateChanged} />
+              </div>
               <span className="sendBtn" onClick={onSend}>
                 <MdSend className="test" />
               </span>

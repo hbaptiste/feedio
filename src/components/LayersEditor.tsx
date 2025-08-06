@@ -94,6 +94,14 @@ export const LayersEditor = () => {
     setTagValue(event.target.value);
   };
 
+  const handeMedataChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+    console.log(">>>");
+    const value = console.log(event.target.value);
+    console.log("Seelect>>>", selection);
+    //selection
+    //mask
+  };
+
   return (
     <div
       className="layers-editor"
@@ -145,21 +153,34 @@ export const LayersEditor = () => {
               })}
           </div>
         </div>
+        <select onChange={handeMedataChange}>
+          <option value=":ref">REF</option>
+          <option value=":pers">Personnage</option>
+          <option value=":year">Année</option>
+          <option value=":editor">Editeur</option>
+          <option value=":author">Auteur</option>
+          <option value=":editor">Editeur</option>
+          <option value=":editor">Editeur</option>
+        </select>
         <p className="red-border mb-5 flex justify-between">
+          <span>Personnage</span>,<span>Strange</span>
           <span className="flex">
             <MdOutlineVisibility />
             label
           </span>
+          <input className="red-border" />
           <a className="red-border flex align-center p-5" onClick={newTag}>
             +
           </a>
         </p>
+
         <p className="red-border mb-5">
           <span>
             <MdOutlineVisibility />
           </span>
           Comment
         </p>
+
         <p className="red-border mb-5">
           <span>
             <MdOutlineVisibility />

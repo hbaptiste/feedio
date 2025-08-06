@@ -43,6 +43,7 @@ declare global {
     ref?: string;
     channel: string;
     content: string; // handle type
+    jsonDoc?: Record<string, any>;
     from: string;
     to?: string;
     part?: MessagePart;
@@ -55,6 +56,7 @@ declare global {
     startOffset: number | null;
     endOffset: number | null;
     content: string | null;
+    dom: HTMLElement;
   }
 
   interface Annotation {

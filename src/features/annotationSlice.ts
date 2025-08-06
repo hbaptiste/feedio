@@ -50,13 +50,13 @@ export const annotationsSlice = createSlice({
       state,
       action: PayloadAction<Annotation>
     ) => {
-      state.annotations = [...state.annotations, action.payload];
+      state.annotations = []; //[...state.annotations, action.payload];
     },
     [loadAnnotations.fulfilled as any]: (
       state,
       action: PayloadAction<Annotation[]>
     ) => {
-      state.annotations = action.payload;
+      //state.annotations = action.payload;
     },
   },
 });

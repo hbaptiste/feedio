@@ -3,7 +3,7 @@ import { getStorage } from "firebase/storage";
 import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyAnK9jSrLwwTCC7pv1oxV0gY-ZKKEMgJHQ",
+  apiKey: "<API_KEY>",
   databaseURL: "https://feed-io-2bf05.firebaseio.com",
   authDomain: "feed-io-2bf05.firebaseapp.com",
   projectId: "feed-io-2bf05",

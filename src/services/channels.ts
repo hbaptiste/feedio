@@ -41,7 +41,18 @@ export const createChannel = async (
   return result as Channel;
 };
 
-// add
+export const getChannelById = async (
+  channelId: string
+): Promise<Channel | null> => {
+  const channelDocRef = doc(database, "channels", channelId);
+  const channelSnap = await getDoc(channelDocRef);
+  if (channelSnap.exists()) {
+    const data = (await channelSnap.data()) as Channel;
+    data.ref = channelDocRef.id;
+    return data;
+  }
+  return null;
+};
 
 // user join a channel -> create an entry in channel participant
 export const joinChannel = (

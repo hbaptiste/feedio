@@ -18,14 +18,20 @@ const router = createBrowserRouter([
       {
         path: "/",
         element: <ChatBoard messages={[]} />,
-      },
-      {
-        path: "/login",
-        element: <Login />,
-      },
-      {
-        path: "/channel/new",
-        element: <ChannelForm />,
+        children: [
+          {
+            path: "login",
+            element: <Login />,
+          },
+          {
+            path: "channel/new",
+            element: <ChannelForm />,
+          },
+          {
+            path: "channel/:channelId",
+            element: <ChatBoard messages={[]} />,
+          },
+        ],
       },
     ],
   },

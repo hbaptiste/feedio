@@ -7,6 +7,7 @@ import {
   setPersistence,
 } from "firebase/auth";
 import { createUser, getUserByUID } from "../services/users";
+import { EditorState, Plugin } from "prosemirror-state";
 
 export const setCurrentUser = createAsyncThunk(
   "user/setUser",
@@ -56,7 +57,10 @@ export const doLogin = createAsyncThunk(
     }
   }
 );
-
+interface Selection {
+  dom: HTMLElement | null;
+  selection: TextSelection;
+}
 // enum view list
 interface GlobalState {
   currentView: string;
@@ -67,6 +71,7 @@ interface GlobalState {
   selection: TextSelection | null;
   displayLayerEditor: boolean;
   selectedMessage: Message | null;
+  editorState: EditorState | null;
 }
 
 const initialState: GlobalState = {
@@ -78,6 +83,7 @@ const initialState: GlobalState = {
   selection: null,
   displayLayerEditor: false,
   selectedMessage: null,
+  editorState: null,
 };
 
 const globalSlice = createSlice({
@@ -103,7 +109,7 @@ const globalSlice = createSlice({
       action: PayloadAction<{ selection: TextSelection; message: Message }>
     ) => {
       const { selection, message } = action.payload;
-      state.selection = selection;
+      //state.selection = { dom: selection.dom as HTMLElement, selection };
       state.displayLayerEditor =
         selection && selection.content?.length ? true : false;
       state.selectedMessage = message;
